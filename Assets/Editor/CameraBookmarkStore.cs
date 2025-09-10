@@ -17,7 +17,7 @@ public struct CameraBookmark
   // We capture the SceneView viewpoint in a way we can restore it:
   public Vector3 pivot;
   public Quaternion rotation;
-  public float size;             
+  public float size;
   public bool orthographic;
 
   // Newer Unity versions expose cameraDistance on SceneView; we store a copy for fidelity.
@@ -26,64 +26,74 @@ public struct CameraBookmark
   // World-space camera position that was present when saved.
   // This is helpful for "nearest to look ray" calculations and for showing where it was.
   public Vector3 cameraPositionAtSave;
+
 }
 
 // Saves into UserSettings (typically not committed). Ideal so bookmarks remain local and not committed files in a project repository.
 [FilePath("UserSettings/CameraBookmarks.asset", FilePathAttribute.Location.ProjectFolder)]
 public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
 {
+
   [SerializeField]
-  private List<CameraBookmark> _bookmarks = new List<CameraBookmark>();
+  private List<CameraBookmark> bookmarks = new List<CameraBookmark>();
+
+  // Event so UI can update immediately when this store changes.
+  // We keep this simple: no args; listeners just re-pull Bookmarks.
+  public event Action Changed;
 
   public IReadOnlyList<CameraBookmark> Bookmarks
   {
     get
     {
-      return _bookmarks;
+      return bookmarks;
     }
   }
 
   public void Add(CameraBookmark bm)
   {
-    _bookmarks.Add(bm);
+    bookmarks.Add(bm);
     Save(true);
+    NotifyChanged();
   }
 
   public void RemoveAt(int index)
   {
-    if (index >= 0 && index < _bookmarks.Count)
+    if (index >= 0 && index < bookmarks.Count)
     {
-      _bookmarks.RemoveAt(index);
+      bookmarks.RemoveAt(index);
       Save(true);
+      NotifyChanged();
     }
   }
 
   public void Rename(int index, string newName)
   {
-    if (index >= 0 && index < _bookmarks.Count)
+    if (index >= 0 && index < bookmarks.Count)
     {
-      var bm = _bookmarks[index];
+      var bm = bookmarks[index];
       bm.name = newName;
-      _bookmarks[index] = bm;
+      bookmarks[index] = bm;
       Save(true);
+      NotifyChanged();
     }
   }
 
   public void Replace(int index, CameraBookmark bm)
   {
-    if (index >= 0 && index < _bookmarks.Count)
+    if (index >= 0 && index < bookmarks.Count)
     {
-      _bookmarks[index] = bm;
+      bookmarks[index] = bm;
       Save(true);
+      NotifyChanged();
     }
   }
 
   // Utility to fetch a bookmark safely.
   public bool TryGet(int index, out CameraBookmark bookmark)
   {
-    if (index >= 0 && index < _bookmarks.Count)
+    if (index >= 0 && index < bookmarks.Count)
     {
-      bookmark = _bookmarks[index];
+      bookmark = bookmarks[index];
       return true;
     }
 
@@ -102,7 +112,6 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
       return false;
     }
 
-    // Capture everything needed to reconstruct the scene view state.
     bookmark = new CameraBookmark
     {
       name = string.IsNullOrEmpty(optionalName) ? $"Bookmark {DateTime.Now:HHmmss}" : optionalName,
@@ -111,7 +120,6 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
       size = sv.size,
       orthographic = sv.orthographic,
       cameraPositionAtSave = sv.camera.transform.position,
-      // If cameraDistance is unavailable on this Unity version, this stays as 0; we’ll restore without it.
       cameraDistance = GetSceneViewCameraDistanceSafe(sv)
     };
 
@@ -128,21 +136,14 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
       return false;
     }
 
-    // Ensure we’re focusing the same style of view (ortho vs perspective).
     sv.orthographic = bookmark.orthographic;
-
-    // Apply rotation and pivot directly. This is the most robust cross-version approach.
     sv.rotation = bookmark.rotation;
     sv.pivot = bookmark.pivot;
     sv.size = bookmark.size;
 
-    // If available in this Unity version, set cameraDistance (helps replicate exact camera pos in perspective).
     SetSceneViewCameraDistanceSafe(sv, bookmark.cameraDistance);
 
-    // Force a repaint and optionally snap instantly.
-    // LookAt with current values can "lock in" instantly; size is already set.
     sv.LookAt(sv.pivot, sv.rotation, sv.size, sv.orthographic, instant);
-
     SceneView.RepaintAll();
     return true;
   }
@@ -151,7 +152,6 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   {
     try
     {
-      // If the property exists, use it.
       var prop = typeof(SceneView).GetProperty("cameraDistance", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
       if (prop != null && prop.CanRead)
       {
@@ -164,10 +164,9 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
     }
     catch
     {
-      // Ignore reflection issues; fallback below.
+      // nothing
     }
 
-    // Fallback: approximate distance along -forward between camera and pivot.
     if (sv.camera != null)
     {
       Vector3 camPos = sv.camera.transform.position;
@@ -190,11 +189,23 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
         return;
       }
     }
-    catch
+    catch { }
+  }
+
+  // Notify listeners (other windows) to refresh.
+  // Using delayCall ensures we fire outside the current IMGUI layout event, which avoids edge-cases.
+  private void NotifyChanged()
+  {
+    Action handler = Changed;
+    if (handler != null)
     {
-      // Ignore; we’ll rely on rotation+pivot+size which is already set.
+      EditorApplication.delayCall += () =>
+      {
+        handler();
+      };
     }
   }
 
 }
+
 #endif

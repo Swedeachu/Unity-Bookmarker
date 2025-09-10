@@ -27,6 +27,23 @@ public class CameraTeleporterUITKWindow : EditorWindow
     window.Show();
   }
 
+  // Subscribe/unsubscribe to store changes so we stay live-synced with the IMGUI window.
+  private void OnEnable()
+  {
+    var store = CameraBookmarkStore.instance;
+    store.Changed += OnStoreChanged;
+  }
+
+  private void OnDisable()
+  {
+    // Guard in case domain-reload timing makes instance unavailable.
+    var store = CameraBookmarkStore.instance;
+    if (store != null)
+    {
+      store.Changed -= OnStoreChanged;
+    }
+  }
+
   // CreateGUI is the UI Toolkit entry point for EditorWindow
   public void CreateGUI()
   {
@@ -52,7 +69,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
     // Buttons row
     var buttonsRow = new VisualElement();
     buttonsRow.style.flexDirection = FlexDirection.Row;
-    // buttonsRow.style.gap = 6;
     buttonsRow.style.marginBottom = 6;
 
     btnTeleportNearest = new Button(OnTeleportNearest)
@@ -73,20 +89,33 @@ public class CameraTeleporterUITKWindow : EditorWindow
     var store = CameraBookmarkStore.instance;
     var data = new List<CameraBookmark>(store.Bookmarks);
 
-    listView = new ListView(data, itemHeight: 20, makeItem: MakeItem, bindItem: (ve, i) =>
-    {
-      var label = ve as Label;
-      if (label != null)
+    listView = new ListView(
+      data,
+      itemHeight: 20,
+      makeItem: MakeItem,
+      bindItem: (ve, i) =>
       {
-        label.text = i >= 0 && i < data.Count ? FormatBookmarkLine(data[i], i) : "<empty>";
-      }
-    });
+        var label = ve as Label;
+        if (label != null)
+        {
+          var src = listView.itemsSource as List<CameraBookmark>;
+          if (src != null && i >= 0 && i < src.Count)
+          {
+            label.text = FormatBookmarkLine(src[i], i);
+          }
+          else
+          {
+            label.text = "<empty>";
+          }
+        }
+      });
 
     listView.selectionType = SelectionType.Single;
     listView.style.flexGrow = 1.0f;
-    // listView.onItemsChosen is obsolete
-    listView.itemsChosen += objects => {
-      // Double-click selection to teleport immediately.
+
+    // Double-click selection to teleport immediately.
+    listView.itemsChosen += objects =>
+    {
       foreach (var obj in objects)
       {
         if (obj is CameraBookmark chosen)
@@ -118,6 +147,39 @@ public class CameraTeleporterUITKWindow : EditorWindow
     RefreshData();
   }
 
+  private void OnStoreChanged()
+  {
+    // Keep selection stable if possible
+    int keepIndex = listView != null ? listView.selectedIndex : -1;
+
+    // Schedule the refresh on the UI Toolkit scheduler to play nicely with ongoing layout.
+    if (rootVisualElement != null)
+    {
+      rootVisualElement.schedule.Execute(() =>
+      {
+        RefreshData();
+
+        // Restore selection if still valid
+        if (keepIndex >= 0)
+        {
+          var data = listView.itemsSource as List<CameraBookmark>;
+          if (data != null && keepIndex < data.Count)
+          {
+            listView.selectedIndex = keepIndex;
+          }
+          else
+          {
+            listView.selectedIndex = -1;
+          }
+        }
+      });
+    }
+    else
+    {
+      RefreshData();
+    }
+  }
+
   private VisualElement MakeItem()
   {
     var lbl = new Label();
@@ -127,7 +189,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
 
   private string FormatBookmarkLine(CameraBookmark bm, int index)
   {
-    // Compact single-line description for the ListView.
     return $"#{index}  {bm.name}   (pivot: {bm.pivot.ToString("F1")}, ortho: {(bm.orthographic ? "Y" : "N")})";
   }
 
@@ -140,7 +201,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
     UpdateStatus($"Loaded {data.Count} bookmark(s).");
   }
 
-  // Button: Teleport to currently selected bookmark in the ListView.
   private void OnTeleportSelected()
   {
     var data = listView.itemsSource as List<CameraBookmark>;
@@ -168,7 +228,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
     }
   }
 
-  // Button: Teleport to the bookmark closest to the camera's current look ray.
   private void OnTeleportNearest()
   {
     var sv = SceneView.lastActiveSceneView;
@@ -192,11 +251,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
       return;
     }
 
-    // Find the bookmark whose pivot is closest to the infinite ray from camera position along camera forward.
-    // Geometric reasoning:
-    //  - For each point P (the bookmark's pivot), the perpendicular distance to the ray R(t) = O + t * D (t >= 0) is:
-    //      || (O - P) - ((O - P)·D) * D ||, if ((P - O)·D) >= 0; else prefer points behind with a slight penalty.
-    //  - We enforce a "front-only bias" so points behind the camera are disfavored but still considered.
     int bestIndex = -1;
     float bestScore = float.PositiveInfinity;
 
@@ -205,17 +259,11 @@ public class CameraTeleporterUITKWindow : EditorWindow
       var bm = list[i];
       Vector3 toP = bm.pivot - rayOrigin;
 
-      // Projection length along forward:
       float t = Vector3.Dot(toP, rayDir);
-
-      // Perpendicular distance to the infinite line:
       Vector3 closestOnLine = rayOrigin + rayDir * t;
       float perpDist = Vector3.Distance(bm.pivot, closestOnLine);
 
-      // If behind the camera, apply a bias so points behind are less likely unless they are very close.
-      // This preserves intuitive behavior: we prefer what we're actually looking towards.
       float behindPenalty = (t < 0.0f) ? 2.0f : 1.0f;
-
       float score = perpDist * behindPenalty;
 
       if (score < bestScore)
