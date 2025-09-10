@@ -141,7 +141,7 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
 
           // Pivot
           EditorGUI.BeginChangeCheck();
-          Vector3 newPivot = EditorGUILayout.Vector3Field("Pivot", bm.pivot);
+          Vector3 newPivot = EditorGUILayout.Vector3Field("Position", bm.pivot);
           if (EditorGUI.EndChangeCheck())
           {
             bm.pivot = newPivot;
@@ -149,7 +149,7 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
           }
 
           // Rotation (Euler) - friendlier than raw quaternion editing.
-          // We still show quaternion below for completeness (read-only or editable if you insist).
+          // We still show quaternion below for completeness (read-only).
           Vector3 euler = bm.rotation.eulerAngles;
           EditorGUI.BeginChangeCheck();
           Vector3 newEuler = EditorGUILayout.Vector3Field("Rotation (Euler)", euler);

@@ -52,6 +52,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   public void Add(CameraBookmark bm)
   {
     bookmarks.Add(bm);
+    Debug.Log($"Creating \"{bm.name}\" at #{bookmarks.Count - 1}");
     Save(true);
     NotifyChanged();
   }
@@ -60,6 +61,8 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   {
     if (index >= 0 && index < bookmarks.Count)
     {
+      CameraBookmark at = bookmarks[index];
+      Debug.Log($"Removing \"{at.name}\" at #{index}");
       bookmarks.RemoveAt(index);
       Save(true);
       NotifyChanged();
@@ -70,7 +73,8 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   {
     if (index >= 0 && index < bookmarks.Count)
     {
-      var bm = bookmarks[index];
+      CameraBookmark bm = bookmarks[index];
+      Debug.Log($"Renaming \"{bm.name}\" to \"{newName}\" at #{index}");
       bm.name = newName;
       bookmarks[index] = bm;
       Save(true);
@@ -162,10 +166,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
         }
       }
     }
-    catch
-    {
-      // nothing
-    }
+    catch { }
 
     if (sv.camera != null)
     {

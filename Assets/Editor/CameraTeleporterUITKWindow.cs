@@ -61,7 +61,7 @@ public class CameraTeleporterUITKWindow : EditorWindow
 
     var help = new HelpBox(
         "Use the buttons below to teleport the SceneView camera. " +
-        "\"Teleport To Nearest Look Target\" finds the bookmark whose pivot is closest to the camera's forward ray. " +
+        "\"Teleport To Nearest Look Target\" finds the bookmark whose position is closest to the camera's forward ray. " +
         "You can also select a bookmark and click \"Teleport To Selected\".",
         HelpBoxMessageType.Info);
     root.Add(help);
@@ -189,7 +189,7 @@ public class CameraTeleporterUITKWindow : EditorWindow
 
   private string FormatBookmarkLine(CameraBookmark bm, int index)
   {
-    return $"#{index}  {bm.name}   (pivot: {bm.pivot.ToString("F1")}, ortho: {(bm.orthographic ? "Y" : "N")})";
+    return $"#{index} {bm.name} (pos: {bm.pivot.ToString("F1")})";
   }
 
   private void RefreshData()
