@@ -20,6 +20,9 @@ public struct CameraBookmark
   public float size;
   public bool orthographic;
 
+  // Visual bookmark gizmo color
+  public Color color;
+
   // Newer Unity versions expose cameraDistance on SceneView; we store a copy for fidelity.
   public float cameraDistance;
 
@@ -106,6 +109,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   }
 
   // Capture the current SceneView camera as a bookmark.
+  // Default name uses timestamp formatted like "10/20/2025 3:02 PM".
   public static bool TryCaptureFromSceneView(out CameraBookmark bookmark, string optionalName = null)
   {
     var sv = SceneView.lastActiveSceneView;
@@ -116,15 +120,28 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
       return false;
     }
 
+    string finalName = "";
+
+    if (string.IsNullOrEmpty(optionalName))
+    {
+      // Formats as: "10/20/2025 3:02 PM"
+      finalName = DateTime.Now.ToString("MM/dd/yyyy h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+    }
+    else
+    {
+      finalName = optionalName;
+    }
+
     bookmark = new CameraBookmark
     {
-      name = string.IsNullOrEmpty(optionalName) ? $"Bookmark {DateTime.Now:HHmmss}" : optionalName,
+      name = finalName,
       pivot = sv.pivot,
       rotation = sv.rotation,
       size = sv.size,
       orthographic = sv.orthographic,
       cameraPositionAtSave = sv.camera.transform.position,
-      cameraDistance = GetSceneViewCameraDistanceSafe(sv)
+      cameraDistance = GetSceneViewCameraDistanceSafe(sv),
+      color = ColorHelpers.RandomBrightColor()
     };
 
     return true;
@@ -205,6 +222,92 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
         handler();
       };
     }
+  }
+
+  // Subscribe to SceneView drawing when the store is loaded.
+  private void OnEnable()
+  {
+    SceneView.duringSceneGui -= OnDuringSceneGUI;
+    SceneView.duringSceneGui += OnDuringSceneGUI;
+  }
+
+  // Unsubscribe cleanly.
+  private void OnDisable()
+  {
+    SceneView.duringSceneGui -= OnDuringSceneGUI;
+  }
+
+  // Draw simple 3D markers (sphere + forward arrow) and optional billboarded text in the Scene view only.
+  private void OnDuringSceneGUI(SceneView sv)
+  {
+    // Only draw when enabled.
+    if (GetGizmosEnabled() == false)
+    {
+      return;
+    }
+
+    // Draw during repaint to avoid handling input.
+    if (Event.current.type != EventType.Repaint)
+    {
+      return;
+    }
+
+    var list = Bookmarks;
+
+    for (int i = 0; i < list.Count; i++)
+    {
+      var bm = list[i];
+      Vector3 p = bm.cameraPositionAtSave;
+
+      // Handle size scales with distance so markers stay readable.
+      float h = HandleUtility.GetHandleSize(p) * 0.15f;
+
+      // Draw a small sphere marker.
+      using (new Handles.DrawingScope(bm.color))
+      {
+        Handles.SphereHandleCap(0, p, Quaternion.identity, h, EventType.Repaint);
+
+        // Draw a forward-direction arrow based on saved rotation.
+        Vector3 dir = bm.rotation * Vector3.forward;
+        Handles.ArrowHandleCap(0, p, Quaternion.LookRotation(dir, Vector3.up), h * 1.6f, EventType.Repaint);
+
+        // Billboarded text label: "#index name"
+        if (GetLabelsEnabled())
+        {
+          var style = new GUIStyle(EditorStyles.boldLabel);
+          style.normal.textColor = Color.white;
+          style.alignment = TextAnchor.UpperLeft;
+
+          // Nudge upward so text doesn't overlap the sphere.
+          Handles.Label(p + Vector3.up * (h * 0.8f), $"#{i} {bm.name}", style);
+        }
+      }
+    }
+  }
+
+  // Toggle getters/setters (stored in EditorPrefs so no extra fields are required).
+  public bool GetGizmosEnabled()
+  {
+    return EditorPrefs.GetBool("CameraBookmarks.DrawGizmos", true);
+  }
+
+  public void SetGizmosEnabled(bool value)
+  {
+    EditorPrefs.SetBool("CameraBookmarks.DrawGizmos", value);
+    SceneView.RepaintAll();
+    NotifyChanged();
+  }
+
+  public bool GetLabelsEnabled()
+  {
+    return EditorPrefs.GetBool("CameraBookmarks.DrawLabels", true);
+  }
+
+  public void SetLabelsEnabled(bool value)
+  {
+    EditorPrefs.SetBool("CameraBookmarks.DrawLabels", value);
+    SceneView.RepaintAll();
+    NotifyChanged();
   }
 
 }

@@ -66,6 +66,38 @@ public class CameraTeleporterUITKWindow : EditorWindow
         HelpBoxMessageType.Info);
     root.Add(help);
 
+    // Gizmo toggles row (SceneView only visuals)
+    var togglesRow = new VisualElement();
+    togglesRow.style.flexDirection = FlexDirection.Row;
+    togglesRow.style.marginBottom = 6;
+    togglesRow.style.flexWrap = Wrap.Wrap;
+
+    var store = CameraBookmarkStore.instance;
+
+    var toggleGizmos = new Toggle("Show Markers in Scene View")
+    {
+      value = store.GetGizmosEnabled()
+    };
+
+    toggleGizmos.RegisterValueChangedCallback(evt =>
+    {
+      store.SetGizmosEnabled(evt.newValue);
+    });
+
+    var toggleLabels = new Toggle("Show Billboarded Text")
+    {
+      value = store.GetLabelsEnabled()
+    };
+
+    toggleLabels.RegisterValueChangedCallback(evt =>
+    {
+      store.SetLabelsEnabled(evt.newValue);
+    });
+
+    togglesRow.Add(toggleGizmos);
+    togglesRow.Add(toggleLabels);
+    root.Add(togglesRow);
+
     // Buttons row
     var buttonsRow = new VisualElement();
     buttonsRow.style.flexDirection = FlexDirection.Row;
@@ -86,7 +118,6 @@ public class CameraTeleporterUITKWindow : EditorWindow
     root.Add(buttonsRow);
 
     // ListView of bookmarks for manual selection
-    var store = CameraBookmarkStore.instance;
     var data = new List<CameraBookmark>(store.Bookmarks);
 
     listView = new ListView(
