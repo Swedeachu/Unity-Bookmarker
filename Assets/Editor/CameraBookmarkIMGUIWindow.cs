@@ -62,7 +62,6 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
     // Keep name cache in sync with count; do not overwrite existing edits.
     if (nameEdits.Count != list.Count)
     {
-      // Remove stale keys
       var toRemove = new List<int>();
       foreach (var k in nameEdits.Keys)
       {
@@ -77,7 +76,6 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
         nameEdits.Remove(k);
       }
 
-      // Add missing keys
       for (int i = 0; i < list.Count; i++)
       {
         if (nameEdits.ContainsKey(i) == false)
@@ -87,7 +85,6 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
       }
     }
 
-    // Defer state mutations that change layout.
     int? removeIndex = null;
 
     scroll = EditorGUILayout.BeginScrollView(scroll);
@@ -103,20 +100,15 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
           {
             EditorGUILayout.LabelField($"#{i}", GUILayout.Width(30));
 
-            // Name field:
-            // Use DelayedTextField so we commit once on enter/focus-loss instead of every keystroke.
-            // Feed from a local cache so the user sees their current typing even before the delayed commit.
             string cachedName = nameEdits.TryGetValue(i, out var val) ? val : bm.name;
             string newName = EditorGUILayout.DelayedTextField(cachedName);
             if (!ReferenceEquals(newName, cachedName))
             {
               nameEdits[i] = newName;
 
-              // Only write to the store when the delayed field reports a change.
               if (newName != bm.name)
               {
                 store.Rename(i, newName);
-                // No layout change; safe to continue.
               }
             }
 
@@ -127,84 +119,72 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
 
             if (GUILayout.Button("Remove", GUILayout.Width(70)))
             {
-              // Defer removal until after layout closes to keep Begin/End symmetric.
               removeIndex = i;
             }
           }
-
           EditorGUILayout.EndHorizontal();
 
           // ---------- Editable Properties ----------
-          // We allow live editing of numbers; we commit immediately when a field changes.
-
           EditorGUI.indentLevel++;
 
-          // Pivot
+          // Position (eye point). Changing this should also move the pivot forward by cameraDistance.
           EditorGUI.BeginChangeCheck();
-          Vector3 newPivot = EditorGUILayout.Vector3Field("Position", bm.pivot);
+          Vector3 newPos = EditorGUILayout.Vector3Field("Position", bm.position);
           if (EditorGUI.EndChangeCheck())
           {
-            bm.pivot = newPivot;
-            store.Replace(i, bm);
+            store.SetPosition(i, newPos); // keeps pivot synced with position
+            store.TryGet(i, out bm);
           }
 
-          // Rotation (Euler) - friendlier than raw quaternion editing.
-          // We still show quaternion below for completeness (read-only).
+          // Rotation (Euler)
           Vector3 euler = bm.rotation.eulerAngles;
           EditorGUI.BeginChangeCheck();
           Vector3 newEuler = EditorGUILayout.Vector3Field("Rotation (Euler)", euler);
-
           if (EditorGUI.EndChangeCheck())
           {
             bm.rotation = Quaternion.Euler(newEuler);
             store.Replace(i, bm);
           }
 
-          // Orthographic toggle
+          /* I don't want to expose these fields as editable right now, only camera position and rotation matter that much. 
+          // Orthographic
           EditorGUI.BeginChangeCheck();
           bool newOrtho = EditorGUILayout.Toggle("Orthographic", bm.orthographic);
-
           if (EditorGUI.EndChangeCheck())
           {
             bm.orthographic = newOrtho;
             store.Replace(i, bm);
           }
 
-          // Size (delayed float to avoid thrashing while typing)
+          // Size
           EditorGUI.BeginChangeCheck();
           float newSize = EditorGUILayout.DelayedFloatField("Size", bm.size);
-
           if (EditorGUI.EndChangeCheck())
           {
             bm.size = Mathf.Max(0.0001f, newSize);
             store.Replace(i, bm);
           }
 
-          // Camera Distance (optional fidelity)
+          // Camera Distance
           EditorGUI.BeginChangeCheck();
           float newCamDist = EditorGUILayout.DelayedFloatField("Camera Distance", bm.cameraDistance);
-
           if (EditorGUI.EndChangeCheck())
           {
             bm.cameraDistance = Mathf.Max(0.0f, newCamDist);
+
+            // If distance changes, recompute pivot to keep the same eye position.
+            bm.pivot = bm.position + (bm.rotation * Vector3.forward) * bm.cameraDistance;
+
             store.Replace(i, bm);
           }
 
-          // Saved camera position (world-space). Editable in case you want to nudge it.
-          EditorGUI.BeginChangeCheck();
-          Vector3 newSavedPos = EditorGUILayout.Vector3Field("Saved Cam Pos", bm.cameraPositionAtSave);
-          if (EditorGUI.EndChangeCheck())
-          {
-            bm.cameraPositionAtSave = newSavedPos;
-            store.Replace(i, bm);
-          }
-
-          // Raw quaternion view (read-only, since editing quats directly is unfriendly).
+          // Read-only quaternion
           using (new EditorGUI.DisabledScope(true))
           {
             Vector4 q = new Vector4(bm.rotation.x, bm.rotation.y, bm.rotation.z, bm.rotation.w);
             EditorGUILayout.Vector4Field("Rotation (xyzw)", q);
           }
+          */
 
           EditorGUI.indentLevel--;
         }
@@ -215,12 +195,11 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
 
     EditorGUILayout.EndScrollView();
 
-    // Apply deferred mutations that change the layout tree 
     if (removeIndex.HasValue)
     {
       store.RemoveAt(removeIndex.Value);
-      nameEdits.Clear(); // force rebuild next frame
-      GUIUtility.ExitGUI(); // abort current IMGUI event to avoid layout mismatch
+      nameEdits.Clear();
+      GUIUtility.ExitGUI();
     }
   }
 

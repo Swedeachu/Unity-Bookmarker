@@ -14,8 +14,7 @@ public struct CameraBookmark
 
   public string name;
 
-  // We capture the SceneView viewpoint in a way we can restore it:
-  public Vector3 pivot;
+  public Vector3 pivot; // the pivot is the point the camera was looking at directly
   public Quaternion rotation;
   public float size;
   public bool orthographic;
@@ -27,8 +26,7 @@ public struct CameraBookmark
   public float cameraDistance;
 
   // World-space camera position that was present when saved.
-  // This is helpful for "nearest to look ray" calculations and for showing where it was.
-  public Vector3 cameraPositionAtSave;
+  public Vector3 position;
 
 }
 
@@ -108,6 +106,28 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
     return false;
   }
 
+  // Atomically set a bookmark's camera position and keep its pivot in sync.
+  // Math (perspective): position = pivot - forward * distance  =>  pivot = position + forward * distance
+  public void SetPosition(int index, Vector3 newPos)
+  {
+    if (index < 0 || index >= bookmarks.Count)
+    {
+      return;
+    }
+
+    CameraBookmark bm = bookmarks[index];
+    bm.position = newPos;
+
+    // Recompute the pivot so "Go To" lands the SceneView camera at the edited position
+    // while looking forward along the saved rotation by the saved cameraDistance.
+    float d = Mathf.Max(0.0f, bm.cameraDistance);
+    bm.pivot = bm.position + (bm.rotation * Vector3.forward) * d;
+
+    bookmarks[index] = bm;
+    Save(true);
+    NotifyChanged();
+  }
+
   // Capture the current SceneView camera as a bookmark.
   // Default name uses timestamp formatted like "10/20/2025 3:02 PM".
   public static bool TryCaptureFromSceneView(out CameraBookmark bookmark, string optionalName = null)
@@ -139,7 +159,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
       rotation = sv.rotation,
       size = sv.size,
       orthographic = sv.orthographic,
-      cameraPositionAtSave = sv.camera.transform.position,
+      position = sv.camera.transform.position,
       cameraDistance = GetSceneViewCameraDistanceSafe(sv),
       color = ColorHelpers.RandomBrightColor()
     };
@@ -148,6 +168,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
   }
 
   // Set the SceneView to a bookmark's viewpoint.
+  // Derive the pivot from the stored position/rotation/distance so edits to position take effect.
   public static bool TryApplyToSceneView(CameraBookmark bookmark, bool instant = true)
   {
     var sv = SceneView.lastActiveSceneView;
@@ -159,8 +180,12 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
 
     sv.orthographic = bookmark.orthographic;
     sv.rotation = bookmark.rotation;
-    sv.pivot = bookmark.pivot;
     sv.size = bookmark.size;
+
+    // Compute pivot from position so the eye point is exactly at 'bookmark.position'.
+    float d = Mathf.Max(0.0f, bookmark.cameraDistance);
+    Vector3 pivotFromPosition = bookmark.position + (bookmark.rotation * Vector3.forward) * d;
+    sv.pivot = pivotFromPosition;
 
     SetSceneViewCameraDistanceSafe(sv, bookmark.cameraDistance);
 
@@ -257,7 +282,7 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
     for (int i = 0; i < list.Count; i++)
     {
       var bm = list[i];
-      Vector3 p = bm.cameraPositionAtSave;
+      Vector3 p = bm.position;
 
       // Handle size scales with distance so markers stay readable.
       float h = HandleUtility.GetHandleSize(p) * 0.15f;
