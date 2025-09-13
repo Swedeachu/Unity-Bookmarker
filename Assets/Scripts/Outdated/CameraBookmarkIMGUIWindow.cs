@@ -1,6 +1,6 @@
 
 // IMGUI-based tool for placing and managing camera bookmarks at the current SceneView camera.
-
+/*
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEditor;
@@ -146,46 +146,6 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
             store.Replace(i, bm);
           }
 
-          /* I don't want to expose these fields as editable right now, only camera position and rotation matter that much. 
-          // Orthographic
-          EditorGUI.BeginChangeCheck();
-          bool newOrtho = EditorGUILayout.Toggle("Orthographic", bm.orthographic);
-          if (EditorGUI.EndChangeCheck())
-          {
-            bm.orthographic = newOrtho;
-            store.Replace(i, bm);
-          }
-
-          // Size
-          EditorGUI.BeginChangeCheck();
-          float newSize = EditorGUILayout.DelayedFloatField("Size", bm.size);
-          if (EditorGUI.EndChangeCheck())
-          {
-            bm.size = Mathf.Max(0.0001f, newSize);
-            store.Replace(i, bm);
-          }
-
-          // Camera Distance
-          EditorGUI.BeginChangeCheck();
-          float newCamDist = EditorGUILayout.DelayedFloatField("Camera Distance", bm.cameraDistance);
-          if (EditorGUI.EndChangeCheck())
-          {
-            bm.cameraDistance = Mathf.Max(0.0f, newCamDist);
-
-            // If distance changes, recompute pivot to keep the same eye position.
-            bm.pivot = bm.position + (bm.rotation * Vector3.forward) * bm.cameraDistance;
-
-            store.Replace(i, bm);
-          }
-
-          // Read-only quaternion
-          using (new EditorGUI.DisabledScope(true))
-          {
-            Vector4 q = new Vector4(bm.rotation.x, bm.rotation.y, bm.rotation.z, bm.rotation.w);
-            EditorGUILayout.Vector4Field("Rotation (xyzw)", q);
-          }
-          */
-
           EditorGUI.indentLevel--;
         }
 
@@ -205,3 +165,4 @@ public class CameraBookmarkIMGUIWindow : EditorWindow
 
 }
 #endif
+*/

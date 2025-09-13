@@ -4,6 +4,7 @@
 // 2) A bookmark selected from a list.
 // Uses a robust geometric test: minimal perpendicular distance from bookmark pivot to camera's forward ray.
 
+/*
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEditor;
@@ -336,3 +337,4 @@ public class CameraTeleporterUITKWindow : EditorWindow
 
 }
 #endif
+*/
