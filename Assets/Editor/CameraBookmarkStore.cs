@@ -180,7 +180,6 @@ public class CameraBookmarkStore : ScriptableSingleton<CameraBookmarkStore>
     return true;
   }
 
-  // apply to SceneView
   public static bool ApplyToSceneView(CameraBookmark bookmark, bool animate)
   {
     var sv = SceneView.lastActiveSceneView;

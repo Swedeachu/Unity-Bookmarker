@@ -1,0 +1,91 @@
+/* A generic card container used for rows and panels */
+.card {
+  /* Layout & spacing */
+  padding: 4px 6px;
+  margin-bottom: 4px;
+
+  /* Border */
+  border-left-width: 1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+
+  /* Use a subtle editor border color */
+  border-left-color: var(--unity-colors-border-strong);
+  border-right-color: var(--unity-colors-border-strong);
+  border-top-color: var(--unity-colors-border-strong);
+  border-bottom-color: var(--unity-colors-border-strong);
+
+  /* Background */
+  background-color: var(--unity-colors-background-alt);
+}
+
+/* Header strip for sections/panels */
+.panelHeader {
+  /* Layout */
+  padding: 6px 8px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+
+  /* Typography */
+  -unity-font-style: bold;
+  font-size: 13px;
+
+  /* Color strip so it's clearly visible in video demos */
+  background-color: var(--unity-colors-helpbox-info);     /* bluish in both themes */
+  color: var(--unity-colors-text);                         /* follows theme text */
+  border-bottom-width: 1px;
+  border-bottom-color: var(--unity-colors-border-weak);
+}
+
+/* Group around multiple related input fields */
+.fieldGroup {
+  /* Layout */
+  padding: 6px 8px;
+  margin: 4px 0 6px 0;
+
+  /* Background & border to visually cluster controls */
+  background-color: var(--unity-colors-background);
+  border-left-width: 1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-left-color: var(--unity-colors-border-weak);
+  border-right-color: var(--unity-colors-border-weak);
+  border-top-color: var(--unity-colors-border-weak);
+  border-bottom-color: var(--unity-colors-border-weak);
+  border-radius: 3px;
+}
+
+/* Give labels inside fieldGroup a little breathing room */
+.fieldGroup Label {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* Accent for the tiny colored dot next to a bookmark entry */
+.pillDot {
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  border-radius: 6px; /* makes it a circle */
+  border-width: 1px;
+  border-color: var(--unity-colors-border-strong);
+}
+
+/* Buttons in list rows get a tiny minimum width to avoid jitter */
+.card Button {
+  min-width: 60px;
+}
+
+/* Optional: a subtle hover for cards so rows feel interactive in the video */
+.card:hover {
+  background-color: var(--unity-colors-background--hover);
+}
+
+/* Slightly larger header text where you want a big title */
+.bigTitle {
+  -unity-font-style: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}

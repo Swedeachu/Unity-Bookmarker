@@ -34,6 +34,9 @@ public class SceneBookmarkerWindow : EditorWindow
   {
     CameraBookmarkStore.instance.Changed += OnStoreChanged;
     EditorSceneManager.activeSceneChangedInEditMode += OnActiveSceneChanged;
+
+    // Listen to SceneView events every frame.
+    SceneView.duringSceneGui += HandleSceneViewHotkeys;
   }
 
   void OnDisable()
@@ -45,12 +48,19 @@ public class SceneBookmarkerWindow : EditorWindow
     }
 
     EditorSceneManager.activeSceneChangedInEditMode -= OnActiveSceneChanged;
+
+    // Stop listening when this window disables.
+    SceneView.duringSceneGui -= HandleSceneViewHotkeys;
   }
+
 
   // layout
   public void CreateGUI()
   {
     var root = rootVisualElement;
+
+    StyleSheetHelper.AttatchStyleSheet(root, "Assets/Editor/UI/BookmarkStyleSheet.uss");
+
     root.style.paddingLeft = 8;
     root.style.paddingRight = 8;
     root.style.paddingTop = 8;
@@ -59,12 +69,15 @@ public class SceneBookmarkerWindow : EditorWindow
 
     // header
     hdrTitle = new Label();
+    hdrTitle.AddToClassList("bigTitle");     
+    hdrTitle.AddToClassList("panelHeader"); 
     hdrTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
     hdrTitle.style.fontSize = 14;
     root.Add(hdrTitle);
 
     // toggles
     var toggles = new VisualElement();
+    toggles.AddToClassList("fieldGroup");
     toggles.style.flexDirection = FlexDirection.Column;
 
     var store = CameraBookmarkStore.instance;
@@ -88,6 +101,7 @@ public class SceneBookmarkerWindow : EditorWindow
     root.Add(help);
 
     var addRow = new VisualElement();
+    addRow.AddToClassList("fieldGroup");
     addRow.style.flexDirection = FlexDirection.Row;
     addRow.style.alignItems = Align.Center;
 
@@ -106,6 +120,7 @@ public class SceneBookmarkerWindow : EditorWindow
 
     // list header
     var listHdr = new Label("Bookmarks");
+    listHdr.AddToClassList("panelHeader");
     listHdr.style.unityFontStyleAndWeight = FontStyle.Bold;
     listHdr.style.marginTop = 6;
     root.Add(listHdr);
@@ -140,6 +155,7 @@ public class SceneBookmarkerWindow : EditorWindow
   VisualElement MakeRow()
   {
     var card = new VisualElement();
+    card.AddToClassList("card");
     card.style.marginBottom = 4;
     card.style.paddingTop = 4;
     card.style.paddingBottom = 4;
@@ -160,6 +176,7 @@ public class SceneBookmarkerWindow : EditorWindow
     header.style.alignItems = Align.Center;
 
     var dot = new VisualElement();
+    dot.AddToClassList("pillDot");
     dot.name = "dot";
     dot.style.width = 12;
     dot.style.height = 12;
@@ -332,6 +349,72 @@ public class SceneBookmarkerWindow : EditorWindow
     else
     {
       listView.RefreshItems();
+    }
+  }
+
+  /// <summary>
+  /// SceneView event hook that listens for Shift/Ctrl + number keys and
+  /// jumps to the corresponding bookmark index.
+  /// Requirements:
+  /// - Only runs when the focused editor window is a SceneView
+  /// - Ignores input if any control/UI has focus (keyboard/hot control)
+  /// - No-ops if index is out of range
+  /// </summary>
+  private static void HandleSceneViewHotkeys(SceneView sv)
+  {
+    // Must be in the SceneView
+    if (!(EditorWindow.focusedWindow is SceneView))
+    {
+      return;
+    }
+
+    Event e = Event.current;
+    if (e == null || e.type != EventType.KeyDown)
+    {
+      return;
+    }
+
+    // Require Shift or Ctrl
+    if (!(e.shift || e.control))
+    {
+      return;
+    }
+
+    // Also skip if SceneView's IMGUI control (overlay, toolbar input) has focus
+    if (GUIUtility.keyboardControl != 0 && GUI.GetNameOfFocusedControl() != "")
+    {
+      return;
+    }
+
+    // Map number keys to bookmark indices
+    int index = -1;
+    switch (e.keyCode)
+    {
+      case KeyCode.Alpha1: case KeyCode.Keypad1: index = 0; break;
+      case KeyCode.Alpha2: case KeyCode.Keypad2: index = 1; break;
+      case KeyCode.Alpha3: case KeyCode.Keypad3: index = 2; break;
+      case KeyCode.Alpha4: case KeyCode.Keypad4: index = 3; break;
+      case KeyCode.Alpha5: case KeyCode.Keypad5: index = 4; break;
+      case KeyCode.Alpha6: case KeyCode.Keypad6: index = 5; break;
+      case KeyCode.Alpha7: case KeyCode.Keypad7: index = 6; break;
+      case KeyCode.Alpha8: case KeyCode.Keypad8: index = 7; break;
+      case KeyCode.Alpha9: case KeyCode.Keypad9: index = 8; break;
+      case KeyCode.Alpha0: case KeyCode.Keypad0: index = 9; break;
+      default: return;
+    }
+
+    var store = CameraBookmarkStore.instance;
+    if (index < 0 || index >= store.Bookmarks.Count)
+    {
+      return;
+    }
+
+    bool animate = EditorPrefs.GetBool(CameraBookMarkPreferences.prefAnimate, true);
+    if (store.TryGet(index, out var target))
+    {
+      CameraBookmarkStore.ApplyToSceneView(target, animate);
+      e.Use();
+      sv.Repaint();
     }
   }
 

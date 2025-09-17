@@ -1,0 +1,65 @@
+/* Make the top title stand out differently than the main window */
+.inspectorHeader {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  -unity-font-style: bold;
+  font-size: 13px;
+  color: var(--unity-colors-text);
+  background-color: var(--unity-colors-helpbox-warning);  /* orangish */
+  border-bottom-width: 1px;
+  border-bottom-color: var(--unity-colors-border-weak);
+}
+
+/* Use for small sectional headers inside the inspector */
+.sectionHeader {
+  margin-top: 6px;
+  margin-bottom: 2px;
+  -unity-font-style: bold;
+  font-size: 12px;
+  color: var(--unity-colors-text-secondary);
+}
+
+/* Slightly different field group tint to differentiate from the main window */
+.inspectorFieldGroup {
+  background-color: var(--unity-colors-background-alt);
+  border-left-width: 1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-left-color: var(--unity-colors-border-weak);
+  border-right-color: var(--unity-colors-border-weak);
+  border-top-color: var(--unity-colors-border-weak);
+  border-bottom-color: var(--unity-colors-border-weak);
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin: 4px 0 6px 0;
+}
+
+/* Delete button base style */
+.deleteButton {  
+  color: var(--unity-colors-text);
+  border-width: 1px;
+  border-color: var(--unity-colors-border-strong);
+  border-radius: 3px;
+  padding: 4px 10px;
+
+  /* Smooth transition for hover/active states */
+  transition-property: background-color, background, color, border-color;
+  transition-duration: 0.25s;
+  transition-timing-function: ease-in-out;
+}
+
+/* Hover: fade to red */
+.deleteButton:hover {
+  background-color: rgba(200, 50, 50, 0.9);
+  background-image: none; 
+  color: white;
+  border-color: rgba(150, 20, 20, 1.0);
+}
+
+/* Pressed: deeper red for feedback */
+.deleteButton:active {
+  background-color: rgba(150, 20, 20, 1.0);
+  background-image: none; /* keep solid red */
+  color: white;
+}

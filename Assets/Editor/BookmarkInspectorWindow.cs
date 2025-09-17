@@ -52,30 +52,45 @@ public class BookmarkInspectorWindow : EditorWindow
     var root = rootVisualElement;
     root.Clear();
 
+    // Attach base bookmark style sheet + inspector USS
+    StyleSheetHelper.AttatchStyleSheet(root, "Assets/Editor/UI/BookmarkStyleSheet.uss");
+    StyleSheetHelper.AttatchStyleSheet(root, "Assets/Editor/UI/BookmarkInspectorStyleSheet.uss");
+
     root.style.paddingLeft = 8;
     root.style.paddingRight = 8;
     root.style.paddingTop = 8;
     root.style.paddingBottom = 8;
     root.style.flexDirection = FlexDirection.Column;
 
+    // Title
     var title = new Label($"Edit Bookmark #{index}");
+    title.AddToClassList("inspectorHeader");  
+    title.AddToClassList("panelHeader");       
     title.style.unityFontStyleAndWeight = FontStyle.Bold;
     root.Add(title);
 
+    // Group: name
+    var nameGroup = new VisualElement();
+    nameGroup.AddToClassList("inspectorFieldGroup");
     nameField = new TextField("Name") { isDelayed = true };
     nameField.RegisterValueChangedCallback(e =>
     {
       CameraBookmarkStore.instance.Rename(index, e.newValue);
     });
+    nameGroup.Add(nameField);
+    root.Add(nameGroup);
 
-    root.Add(nameField);
-
+    // Group: position + rotation
+    var transformGroup = new VisualElement();
+    transformGroup.AddToClassList("fieldGroup");     
+    transformGroup.AddToClassList("inspectorFieldGroup");
+    transformGroup.Add(new Label("Transform").AddToClassReturning("sectionHeader"));
+    // Helper extension (below) simply returns the same element after AddToClassList so you can inline-add
     posField = new Vector3Field("Position");
     posField.RegisterCallback<FocusOutEvent>(_ =>
     {
       CameraBookmarkStore.instance.SetPosition(index, posField.value);
     });
-
     posField.RegisterCallback<KeyDownEvent>(e =>
     {
       if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
@@ -84,8 +99,6 @@ public class BookmarkInspectorWindow : EditorWindow
         e.StopPropagation();
       }
     });
-
-    root.Add(posField);
 
     eulerField = new Vector3Field("Rotation (Euler)");
     eulerField.RegisterCallback<FocusOutEvent>(_ =>
@@ -96,7 +109,6 @@ public class BookmarkInspectorWindow : EditorWindow
         CameraBookmarkStore.instance.Replace(index, cur);
       }
     });
-
     eulerField.RegisterCallback<KeyDownEvent>(e =>
     {
       if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
@@ -110,8 +122,15 @@ public class BookmarkInspectorWindow : EditorWindow
       }
     });
 
-    root.Add(eulerField);
+    transformGroup.Add(posField);
+    transformGroup.Add(eulerField);
+    root.Add(transformGroup);
 
+    // Group: color
+    var colorGroup = new VisualElement();
+    colorGroup.AddToClassList("fieldGroup");
+    colorGroup.AddToClassList("inspectorFieldGroup");
+    colorGroup.Add(new Label("Appearance").AddToClassReturning("sectionHeader"));
     colorField = new ColorField("Color");
     colorField.RegisterValueChangedCallback(e =>
     {
@@ -121,10 +140,12 @@ public class BookmarkInspectorWindow : EditorWindow
         CameraBookmarkStore.instance.Replace(index, cur);
       }
     });
+    colorGroup.Add(colorField);
+    root.Add(colorGroup);
 
-    root.Add(colorField);
-
-
+    // Delete button (drop it in a card for emphasis)
+    var deleteWrap = new VisualElement();
+    deleteWrap.AddToClassList("card");
     var deleteBtn = new Button(() =>
     {
       if (!CameraBookmarkStore.instance.TryGet(index, out var bm))
@@ -143,7 +164,10 @@ public class BookmarkInspectorWindow : EditorWindow
     })
     { text = "Delete" };
 
-    root.Add(deleteBtn);
+    // Add a class so we can style it in USS
+    deleteBtn.AddToClassList("deleteButton");
+    deleteWrap.Add(deleteBtn);
+    root.Add(deleteWrap);
   }
 
   void Rebind()
@@ -162,4 +186,15 @@ public class BookmarkInspectorWindow : EditorWindow
   }
 
 }
+
+// Small helper to chain AddToClassList during element construction
+static class VEExt
+{
+  public static T AddToClassReturning<T>(this T ve, string className) where T : VisualElement
+  {
+    ve.AddToClassList(className);
+    return ve;
+  }
+}
+
 #endif
